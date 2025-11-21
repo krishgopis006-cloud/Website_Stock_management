@@ -124,6 +124,21 @@ app.delete('/api/users/:username', async (req, res) => {
     }
 });
 
+app.get('/api/fix-admin', async (req, res) => {
+    try {
+        const admin = await User.findByPk('admin');
+        if (admin) {
+            await admin.update({ password: 'admin123' });
+            res.send('Admin password reset to admin123');
+        } else {
+            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
+            res.send('Admin user created with password admin123');
+        }
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+});
+
 // --- Auth Routes ---
 app.post('/api/login', async (req, res) => {
     try {
