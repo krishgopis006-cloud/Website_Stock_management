@@ -1,0 +1,231 @@
+:root {
+  /* Color Palette - Premium Violet Glass */
+  --bg-app: #0f0c29;
+  /* Deep dark purple/blue */
+  --bg-glass: rgba(30, 27, 75, 0.7);
+  --bg-glass-hover: rgba(49, 46, 129, 0.8);
+  --border-glass: rgba(139, 92, 246, 0.2);
+
+  --primary: #8b5cf6;
+  /* Violet 500 */
+  --primary-hover: #7c3aed;
+  --primary-glow: rgba(139, 92, 246, 0.5);
+
+  --success: #10b981;
+  /* Emerald */
+  --danger: #f43f5e;
+  /* Rose */
+  --warning: #f59e0b;
+  /* Amber */
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  /* Spacing & Layout */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+
+  /* Typography */
+  --font-sans: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --sidebar-width: 280px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.2) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Utilities */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glass);
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: white;
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.btn-danger {
+  background-color: rgba(244, 63, 94, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.btn-danger:hover {
+  background-color: rgba(244, 63, 94, 0.25);
+}
+
+.input-field {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 0.875rem;
+  border-radius: var(--radius-sm);
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.grid-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* Layout & Responsiveness */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  margin: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: calc(100vh - 2rem);
+  z-index: 50;
+  transition: transform 0.3s ease-in-out;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: calc(var(--sidebar-width) + 2rem);
+  padding: 1rem;
+  transition: margin-left 0.3s ease-in-out;
+  width: 100%;
+}
+
+.mobile-nav-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 60;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  box-shadow: var(--shadow-glass);
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+/* Mobile Styles */
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-110%);
+    margin: 0;
+    height: 100vh;
+    border-radius: 0 20px 20px 0;
+    background: #1e1b4b;
+    /* Darker solid background for mobile menu */
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-top: 4rem;
+    /* Space for toggle button if needed, or just general spacing */
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  .page-container {
+    padding: 1rem;
+  }
+}
