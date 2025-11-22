@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
-}
+const PORT = 3001;
 
 // Models
 const Product = sequelize.define('Product', {
