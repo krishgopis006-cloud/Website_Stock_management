@@ -30,19 +30,23 @@ if (databaseUrl) {
     try {
         const parsedUrl = new URL(databaseUrl);
         const hostname = parsedUrl.hostname;
-        // Check if hostname is not an IP address
+
+        // Skip if already an IP
         if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-            console.log(`Resolving database hostname '${hostname}' to IPv4...`);
-            const ipAddresses = await dns.promises.resolve4(hostname);
-            if (ipAddresses && ipAddresses.length > 0) {
-                parsedUrl.hostname = ipAddresses[0];
+            console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
+            // Use dns.lookup (OS resolver) instead of resolve4 (network)
+            const { address } = await dns.promises.lookup(hostname, { family: 4 });
+
+            if (address) {
+                console.log(`✅ Resolved '${hostname}' to IPv4: ${address}`);
+                parsedUrl.hostname = address;
                 databaseUrl = parsedUrl.toString();
-                console.log(`✅ Resolved to IPv4: ${ipAddresses[0]}`);
+            } else {
+                console.warn(`⚠️ No IPv4 address found for ${hostname}`);
             }
         }
     } catch (error) {
-        console.warn('⚠️ Failed to resolve database hostname to IPv4:', error.message);
-        // Continue with original URL, it might work if the environment handles it
+        console.warn('⚠️ DNS Lookup failed, falling back to original URL:', error.message);
     }
 }
 
