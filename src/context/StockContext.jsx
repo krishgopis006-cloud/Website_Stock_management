@@ -7,7 +7,7 @@ export const useStock = () => useContext(StockContext);
 export const StockProvider = ({ children }) => {
     const [inventory, setInventory] = useState([]);
     const [transactions, setTransactions] = useState([]);
-    const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
+    const API_URL = import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
     // Fetch initial data
     useEffect(() => {
