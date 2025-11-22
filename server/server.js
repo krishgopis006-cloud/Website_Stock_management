@@ -17,64 +17,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Database Setup
-let databaseUrl = process.env.DATABASE_URL;
-
-// Force IPv4 resolution for Cloud Databases (Render/Neon)
-if (databaseUrl) {
-    try {
-        const parsedUrl = new URL(databaseUrl);
-        const hostname = parsedUrl.hostname;
-
-        // Skip if already an IP
-        if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-            console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
-            try {
-                const result = await dns.promises.lookup(hostname, { family: 4 });
-                console.log('🔍 DNS Lookup Result:', JSON.stringify(result));
-
-                if (result && result.address) {
-                    console.log(`✅ Resolved '${hostname}' to IPv4: ${result.address}`);
-                    parsedUrl.hostname = result.address;
-                    databaseUrl = parsedUrl.toString();
-                } else {
-                    console.warn(`⚠️ No IPv4 address found for ${hostname}`);
-                }
-            } catch (dnsError) {
-                console.error('❌ DNS Lookup Error:', dnsError);
-            }
-        }
-    } catch (error) {
-        console.warn('⚠️ URL Parsing/DNS Logic failed:', error);
-    }
-}
-
-const sequelize = databaseUrl
-    ? new Sequelize(databaseUrl, {
-        dialect: 'postgres',
-        dialectOptions: {
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
-            }
-        },
-        logging: false
-    })
-    : new Sequelize({
-        dialect: 'sqlite',
-        storage: path.join(__dirname, 'database.sqlite'),
-        logging: false
-    });
-
-if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    console.warn('\n⚠️  WARNING: You are running in production mode without a DATABASE_URL.');
-    console.warn('⚠️  Data will be stored in a local SQLite file and WILL BE LOST when the server restarts.');
-    console.warn('⚠️  Please configure DATABASE_URL to use a persistent PostgreSQL database.\n');
 }
 
 // Models
