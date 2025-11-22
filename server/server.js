@@ -10,7 +10,6 @@ if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
 }
 
-import dns from 'node:dns';
 import { URL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
