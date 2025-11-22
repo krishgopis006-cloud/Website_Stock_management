@@ -5,7 +5,7 @@ const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ username: '', password: '', role: 'guest' });
     const [error, setError] = useState('');
-    const API_URL = 'http://192.168.1.9:3001/api';
+    const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
 
     useEffect(() => {
         fetchUsers();
