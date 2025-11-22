@@ -18,9 +18,67 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
+// Database Setup
+let sequelize;
+
+const initializeDatabase = async () => {
+    let dbUrl = process.env.DATABASE_URL;
+    let dbOptions = {
+        logging: false
+    };
+
+    if (dbUrl) {
+        try {
+            const parsedUrl = new URL(dbUrl);
+            const hostname = parsedUrl.hostname;
+
+            // If hostname is not an IP, force resolve to IPv4
+            if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+                console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
+                const ipAddresses = await dns.promises.resolve4(hostname);
+
+                if (ipAddresses && ipAddresses.length > 0) {
+                    console.log(`✅ Resolved '${hostname}' to IPv4: ${ipAddresses[0]}`);
+                    // Construct new URL with IP
+                    parsedUrl.hostname = ipAddresses[0];
+                    dbUrl = parsedUrl.toString();
+                } else {
+                    throw new Error(`No IPv4 address found for ${hostname}`);
+                }
+            }
+
+            dbOptions = {
+                ...dbOptions,
+                dialect: 'postgres',
+                dialectOptions: {
+                    ssl: {
+                        require: true,
+                        rejectUnauthorized: false
+                    }
+                }
+            };
+
+            sequelize = new Sequelize(dbUrl, dbOptions);
+
+        } catch (error) {
+            console.error('❌ CRITICAL DATABASE ERROR:', error);
+            process.exit(1); // Fail hard if we can't resolve IPv4
+        }
+    } else {
+        sequelize = new Sequelize({
+            dialect: 'sqlite',
+            storage: path.join(__dirname, 'database.sqlite'),
+            logging: false
+        });
+    }
+};
+
+// Initialize immediately
+await initializeDatabase();
+
 
 // Models
-const Product = Sequelize.define('Product', {
+const Product = sequelize.define('Product', {
     id: { type: DataTypes.STRING, primaryKey: true },
     name: { type: DataTypes.STRING, allowNull: false },
     quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -28,7 +86,7 @@ const Product = Sequelize.define('Product', {
     date: { type: DataTypes.STRING }
 });
 
-const Transaction = Sequelize.define('Transaction', {
+const Transaction = sequelize.define('Transaction', {
     id: { type: DataTypes.STRING, primaryKey: true },
     type: { type: DataTypes.STRING, allowNull: false }, // IN, OUT, RETURN, DELETE
     name: { type: DataTypes.STRING, allowNull: false },
@@ -39,7 +97,7 @@ const Transaction = Sequelize.define('Transaction', {
     timestamp: { type: DataTypes.STRING }
 });
 
-const User = Sequelize.define('User', {
+const User = sequelize.define('User', {
     username: { type: DataTypes.STRING, primaryKey: true },
     password: { type: DataTypes.STRING, allowNull: false },
     role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
