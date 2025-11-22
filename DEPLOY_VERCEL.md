@@ -6,7 +6,7 @@ This guide will help you deploy your website (Frontend + Backend) to Vercel for 
 
 1.  **GitHub Account**: You need to push your code to a GitHub repository.
 2.  **Vercel Account**: Sign up at [vercel.com](https://vercel.com) using your GitHub account.
-3.  **PostgreSQL Database**: You already have this (Supabase or Neon).
+3.  **PostgreSQL Database**: You need a cloud database. **Follow the instructions in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) first.**
 
 ## Steps
 
@@ -33,8 +33,8 @@ You MUST add your database URL here.
 1.  Expand the **"Environment Variables"** section.
 2.  Add a new variable:
     -   **Key**: `DATABASE_URL`
-    -   **Value**: Your Supabase "Connection Pooler" URL (starts with `postgres://` and has port `6543`).
-    -   *Note: Do NOT use the Direct Connection URL (port 5432) as it causes IPv6 errors.*
+    -   **Value**: `postgres://postgres.tkobagalbdlwamqjmgpk:Gopi%40061199@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres`
+    -   *(I have already formatted this for you with the correct password encoding)*
 
 ### 4. Deploy
 1.  Click **"Deploy"**.
