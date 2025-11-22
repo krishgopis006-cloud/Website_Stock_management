@@ -34,7 +34,8 @@ export const AuthProvider = ({ children }) => {
                 return { success: false, error: 'Invalid credentials' };
             }
         } catch (error) {
-            return { success: false, error: 'Server error' };
+            console.error("Login Error Details:", error);
+            return { success: false, error: `Server error: ${error.message}` };
         }
     };
 
