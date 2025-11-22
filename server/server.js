@@ -3,6 +3,15 @@ import cors from 'cors';
 import { Sequelize, DataTypes } from 'sequelize';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'node:dns';
+
+// Force IPv4 to avoid ENETUNREACH errors on some hosting platforms (Node 17+)
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
+
+import dns from 'node:dns';
+import { URL } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,8 +24,31 @@ app.use(cors());
 app.use(express.json());
 
 // Database Setup
-const sequelize = process.env.DATABASE_URL
-    ? new Sequelize(process.env.DATABASE_URL, {
+let databaseUrl = process.env.DATABASE_URL;
+
+// Force IPv4 resolution for Cloud Databases (Render/Neon)
+if (databaseUrl) {
+    try {
+        const parsedUrl = new URL(databaseUrl);
+        const hostname = parsedUrl.hostname;
+        // Check if hostname is not an IP address
+        if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+            console.log(`Resolving database hostname '${hostname}' to IPv4...`);
+            const ipAddresses = await dns.promises.resolve4(hostname);
+            if (ipAddresses && ipAddresses.length > 0) {
+                parsedUrl.hostname = ipAddresses[0];
+                databaseUrl = parsedUrl.toString();
+                console.log(`✅ Resolved to IPv4: ${ipAddresses[0]}`);
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Failed to resolve database hostname to IPv4:', error.message);
+        // Continue with original URL, it might work if the environment handles it
+    }
+}
+
+const sequelize = databaseUrl
+    ? new Sequelize(databaseUrl, {
         dialect: 'postgres',
         dialectOptions: {
             ssl: {
@@ -31,6 +63,12 @@ const sequelize = process.env.DATABASE_URL
         storage: path.join(__dirname, 'database.sqlite'),
         logging: false
     });
+
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    console.warn('\n⚠️  WARNING: You are running in production mode without a DATABASE_URL.');
+    console.warn('⚠️  Data will be stored in a local SQLite file and WILL BE LOST when the server restarts.');
+    console.warn('⚠️  Please configure DATABASE_URL to use a persistent PostgreSQL database.\n');
+}
 
 // Models
 const Product = sequelize.define('Product', {
