@@ -18,6 +18,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
+// Add CORS and JSON parsing BEFORE routes
+app.use(cors());
+app.use(express.json());
+
 // Database Setup
 // Database Setup
 let sequelize;
@@ -39,14 +43,9 @@ const initializeDatabase = async () => {
     };
 
     if (!dbUrl) {
-        // Fallback for local dev without env (should not happen in prod)
-        console.warn('⚠️ No DATABASE_URL found, using sqlite fallback');
-        sequelize = new Sequelize({
-            dialect: 'sqlite',
-            storage: path.join(__dirname, 'database.sqlite'),
-            logging: false
-        });
-        return sequelize;
+        const errorMsg = '❌ CRITICAL: DATABASE_URL environment variable is not set. Please configure it in Vercel settings.';
+        console.error(errorMsg);
+        throw new Error(errorMsg);
     }
 
     try {
@@ -130,6 +129,11 @@ const User = sequelize.define('User', {
 // Models defined above. Sync is handled in initializeDatabase.
 
 // Routes
+
+// Health check - doesn't need DB
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Server is running' });
+});
 
 // --- User Routes ---
 app.get('/api/users', async (req, res) => {
