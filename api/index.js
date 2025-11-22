@@ -19,82 +19,86 @@ const app = express();
 const PORT = 3001;
 
 // Database Setup
+// Database Setup
 let sequelize;
+let dbInitPromise = null;
 
 const initializeDatabase = async () => {
+    if (sequelize) return sequelize;
+
     let dbUrl = process.env.DATABASE_URL;
     let dbOptions = {
-        logging: false
+        logging: false,
+        dialect: 'postgres',
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false
+            }
+        }
     };
 
-    if (dbUrl) {
-        try {
-            const parsedUrl = new URL(dbUrl);
-            const hostname = parsedUrl.hostname;
-
-            // If hostname is not an IP, force resolve to IPv4
-            if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-                console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
-                let ipAddresses;
-
-                try {
-                    // Try default resolver first
-                    ipAddresses = await dns.promises.resolve4(hostname);
-                } catch (dnsError) {
-                    console.warn(`⚠️ Default DNS failed (${dnsError.code}), trying Google DNS (8.8.8.8)...`);
-                    // Fallback to Google DNS
-                    dns.setServers(['8.8.8.8', '8.8.4.4']);
-                    ipAddresses = await dns.promises.resolve4(hostname);
-                }
-
-                if (ipAddresses && ipAddresses.length > 0) {
-                    console.log(`✅ Resolved '${hostname}' to IPv4: ${ipAddresses[0]}`);
-                    // Construct new URL with IP
-                    parsedUrl.hostname = ipAddresses[0];
-                    dbUrl = parsedUrl.toString();
-                } else {
-                    throw new Error(`No IPv4 address found for ${hostname}`);
-                }
-            }
-
-            dbOptions = {
-                ...dbOptions,
-                dialect: 'postgres',
-                dialectOptions: {
-                    ssl: {
-                        require: true,
-                        rejectUnauthorized: false
-                    }
-                }
-            };
-
-            sequelize = new Sequelize(dbUrl, dbOptions);
-
-        } catch (error) {
-            console.error('❌ CRITICAL DATABASE ERROR:', error.message);
-
-            if (dbUrl.includes('supabase.co') && (error.code === 'ENODATA' || error.message.includes('No IPv4'))) {
-                console.error('\n⚠️  SUPABASE CONFIGURATION ISSUE DETECTED ⚠️');
-                console.error('You are likely using the "Direct Connection" URL which is IPv6-only.');
-                console.error('Most cloud hosts (like Render) only support IPv4.');
-                console.error('👉 SOLUTION: Go to Supabase Dashboard -> Database -> Connection String -> URI');
-                console.error('👉 Select "Connection Pooler" (Mode: Transaction) and copy that URL.');
-                console.error('👉 It should look like: postgres://[user]:[password]@aws-0-[region].pooler.supabase.com:6543/[db]\n');
-            }
-
-            process.exit(1);
-        }
-    } else {
+    if (!dbUrl) {
+        // Fallback for local dev without env (should not happen in prod)
+        console.warn('⚠️ No DATABASE_URL found, using sqlite fallback');
         sequelize = new Sequelize({
             dialect: 'sqlite',
             storage: path.join(__dirname, 'database.sqlite'),
             logging: false
         });
+        return sequelize;
+    }
+
+    try {
+        console.log('Connecting to database...');
+        sequelize = new Sequelize(dbUrl, dbOptions);
+        await sequelize.authenticate();
+        console.log('✅ Database connected');
+
+        // Sync models
+        await sequelize.sync({ alter: true });
+
+        // Seed users
+        await seedUsers();
+
+        return sequelize;
+    } catch (error) {
+        console.error('❌ Database connection error:', error);
+        throw error;
     }
 };
 
-// Initialize immediately
-await initializeDatabase();
+const seedUsers = async () => {
+    try {
+        const admin = await User.findByPk('admin');
+        if (!admin) {
+            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
+            console.log('Admin user created');
+        }
+
+        const guest = await User.findByPk('guest');
+        if (!guest) {
+            await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
+            console.log('Guest user created');
+        }
+    } catch (error) {
+        console.error('Error seeding users:', error);
+    }
+};
+
+// Middleware to ensure DB is ready
+app.use(async (req, res, next) => {
+    try {
+        if (!dbInitPromise) {
+            dbInitPromise = initializeDatabase();
+        }
+        await dbInitPromise;
+        next();
+    } catch (error) {
+        console.error('Middleware DB Error:', error);
+        res.status(500).json({ error: 'Database connection failed', details: error.message });
+    }
+});
 
 
 // Models
@@ -123,27 +127,7 @@ const User = sequelize.define('User', {
     role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
 });
 
-// Sync Database & Seed Users
-sequelize.sync({ alter: true }).then(async () => {
-    console.log('Database & tables created!');
-
-    // Seed default users if they don't exist
-    try {
-        const admin = await User.findByPk('admin');
-        if (!admin) {
-            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
-            console.log('Admin user created');
-        }
-
-        const guest = await User.findByPk('guest');
-        if (!guest) {
-            await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
-            console.log('Guest user created');
-        }
-    } catch (error) {
-        console.error('Error seeding users:', error);
-    }
-});
+// Models defined above. Sync is handled in initializeDatabase.
 
 // Routes
 
