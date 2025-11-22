@@ -1,141 +1,124 @@
 import express from 'express';
 import cors from 'cors';
 import { Sequelize, DataTypes } from 'sequelize';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dns from 'node:dns';
-
-// Force IPv4 to avoid ENETUNREACH errors on some hosting platforms (Node 17+)
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-}
-
-import { URL } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3001;
 
-// Add CORS and JSON parsing BEFORE routes
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 // Database Setup
-// Database Setup
 let sequelize;
-let dbInitPromise = null;
+let Product, Transaction, User;
+let dbInitialized = false;
 
-const initializeDatabase = async () => {
-    if (sequelize) return sequelize;
+const initDB = async () => {
+    if (dbInitialized) return;
 
-    let dbUrl = process.env.DATABASE_URL;
-    let dbOptions = {
-        logging: false,
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+        throw new Error('DATABASE_URL is not set in environment variables');
+    }
+
+    sequelize = new Sequelize(dbUrl, {
         dialect: 'postgres',
         dialectOptions: {
-            ssl: {
-                require: true,
-                rejectUnauthorized: false
-            }
-        }
-    };
+            ssl: { require: true, rejectUnauthorized: false }
+        },
+        logging: false
+    });
 
-    if (!dbUrl) {
-        const errorMsg = '❌ CRITICAL: DATABASE_URL environment variable is not set. Please configure it in Vercel settings.';
-        console.error(errorMsg);
-        throw new Error(errorMsg);
+    await sequelize.authenticate();
+
+    // Define models
+    Product = sequelize.define('Product', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        name: { type: DataTypes.STRING, allowNull: false },
+        quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
+        price: { type: DataTypes.FLOAT, defaultValue: 0.0 },
+        date: { type: DataTypes.STRING }
+    });
+
+    Transaction = sequelize.define('Transaction', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        type: { type: DataTypes.STRING, allowNull: false },
+        name: { type: DataTypes.STRING, allowNull: false },
+        quantity: { type: DataTypes.INTEGER, allowNull: false },
+        price: { type: DataTypes.FLOAT },
+        channel: { type: DataTypes.STRING },
+        reason: { type: DataTypes.STRING },
+        timestamp: { type: DataTypes.STRING }
+    });
+
+    User = sequelize.define('User', {
+        username: { type: DataTypes.STRING, primaryKey: true },
+        password: { type: DataTypes.STRING, allowNull: false },
+        role: { type: DataTypes.STRING, defaultValue: 'guest' }
+    });
+
+    await sequelize.sync({ alter: true });
+
+    // Seed default users
+    const admin = await User.findByPk('admin');
+    if (!admin) {
+        await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
     }
 
-    try {
-        console.log('Connecting to database...');
-        sequelize = new Sequelize(dbUrl, dbOptions);
-        await sequelize.authenticate();
-        console.log('✅ Database connected');
-
-        // Sync models
-        await sequelize.sync({ alter: true });
-
-        // Seed users
-        await seedUsers();
-
-        return sequelize;
-    } catch (error) {
-        console.error('❌ Database connection error:', error);
-        throw error;
+    const guest = await User.findByPk('guest');
+    if (!guest) {
+        await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
     }
+
+    dbInitialized = true;
 };
 
-const seedUsers = async () => {
-    try {
-        const admin = await User.findByPk('admin');
-        if (!admin) {
-            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
-            console.log('Admin user created');
-        }
-
-        const guest = await User.findByPk('guest');
-        if (!guest) {
-            await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
-            console.log('Guest user created');
-        }
-    } catch (error) {
-        console.error('Error seeding users:', error);
-    }
-};
-
-// Middleware to ensure DB is ready
+// DB middleware
 app.use(async (req, res, next) => {
     try {
-        if (!dbInitPromise) {
-            dbInitPromise = initializeDatabase();
-        }
-        await dbInitPromise;
+        await initDB();
         next();
     } catch (error) {
-        console.error('Middleware DB Error:', error);
-        res.status(500).json({ error: 'Database connection failed', details: error.message });
+        res.status(500).json({ error: 'Database error', details: error.message });
     }
 });
 
-
-// Models
-const Product = sequelize.define('Product', {
-    id: { type: DataTypes.STRING, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
-    price: { type: DataTypes.FLOAT, defaultValue: 0.0 },
-    date: { type: DataTypes.STRING }
-});
-
-const Transaction = sequelize.define('Transaction', {
-    id: { type: DataTypes.STRING, primaryKey: true },
-    type: { type: DataTypes.STRING, allowNull: false }, // IN, OUT, RETURN, DELETE
-    name: { type: DataTypes.STRING, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, allowNull: false },
-    price: { type: DataTypes.FLOAT },
-    channel: { type: DataTypes.STRING }, // TikTok, WhatsApp, etc.
-    reason: { type: DataTypes.STRING },
-    timestamp: { type: DataTypes.STRING }
-});
-
-const User = sequelize.define('User', {
-    username: { type: DataTypes.STRING, primaryKey: true },
-    password: { type: DataTypes.STRING, allowNull: false },
-    role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
-});
-
-// Models defined above. Sync is handled in initializeDatabase.
-
-// Routes
-
-// Health check - doesn't need DB
+// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Server is running' });
+    res.json({ status: 'OK' });
 });
 
-// --- User Routes ---
+// Auth
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findByPk(username);
+        if (user && user.password === password) {
+            res.json({ username: user.username, role: user.role });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/fix-admin', async (req, res) => {
+    try {
+        const admin = await User.findByPk('admin');
+        if (admin) {
+            await admin.update({ password: 'admin123' });
+            res.send('Admin password reset to admin123');
+        } else {
+            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
+            res.send('Admin user created');
+        }
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+});
+
+// Users
 app.get('/api/users', async (req, res) => {
     try {
         const users = await User.findAll({ attributes: ['username', 'role'] });
@@ -177,43 +160,7 @@ app.delete('/api/users/:username', async (req, res) => {
     }
 });
 
-app.get('/api/fix-admin', async (req, res) => {
-    try {
-        const admin = await User.findByPk('admin');
-        if (admin) {
-            await admin.update({ password: 'admin123' });
-            res.send('Admin password reset to admin123');
-        } else {
-            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
-            res.send('Admin user created with password admin123');
-        }
-    } catch (error) {
-        res.status(500).send(error.message);
-    }
-});
-
-// --- Auth Routes ---
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        console.log(`Login attempt for: '${username}'`);
-
-        const user = await User.findByPk(username);
-
-        if (user && user.password === password) {
-            console.log('Login success');
-            res.json({ username: user.username, role: user.role });
-        } else {
-            console.log('Login failed: Invalid credentials');
-            res.status(401).json({ error: 'Invalid credentials' });
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// --- Inventory Routes ---
+// Inventory
 app.get('/api/inventory', async (req, res) => {
     try {
         const products = await Product.findAll();
@@ -232,30 +179,9 @@ app.post('/api/inventory', async (req, res) => {
     }
 });
 
-
-// --- Reset Routes ---
-app.delete('/api/inventory/reset', async (req, res) => {
-    try {
-        await Product.destroy({ where: {}, truncate: true });
-        res.json({ message: 'All inventory cleared' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.delete('/api/transactions/reset', async (req, res) => {
-    try {
-        await Transaction.destroy({ where: {}, truncate: true });
-        res.json({ message: 'All transactions cleared' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 app.put('/api/inventory/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const product = await Product.findByPk(id);
+        const product = await Product.findByPk(req.params.id);
         if (product) {
             await product.update(req.body);
             res.json(product);
@@ -269,8 +195,7 @@ app.put('/api/inventory/:id', async (req, res) => {
 
 app.delete('/api/inventory/:id', async (req, res) => {
     try {
-        const { id } = req.params;
-        const product = await Product.findByPk(id);
+        const product = await Product.findByPk(req.params.id);
         if (product) {
             await product.destroy();
             res.json({ message: 'Product deleted' });
@@ -282,12 +207,19 @@ app.delete('/api/inventory/:id', async (req, res) => {
     }
 });
 
-// --- Transaction Routes ---
+app.delete('/api/inventory/reset', async (req, res) => {
+    try {
+        await Product.destroy({ where: {}, truncate: true });
+        res.json({ message: 'All inventory cleared' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Transactions
 app.get('/api/transactions', async (req, res) => {
     try {
-        const transactions = await Transaction.findAll({
-            order: [['timestamp', 'DESC']]
-        });
+        const transactions = await Transaction.findAll({ order: [['timestamp', 'DESC']] });
         res.json(transactions);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -303,14 +235,14 @@ app.post('/api/transactions', async (req, res) => {
     }
 });
 
-
+app.delete('/api/transactions/reset', async (req, res) => {
+    try {
+        await Transaction.destroy({ where: {}, truncate: true });
+        res.json({ message: 'All transactions cleared' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Export for Vercel
 export default app;
-
-// Only listen if run directly (not imported)
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server running on http://0.0.0.0:${PORT}`);
-    });
-}
