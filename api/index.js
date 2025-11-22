@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { Sequelize, DataTypes } from 'sequelize';
+import pg from 'pg';
 
 const app = express();
 
@@ -28,6 +29,7 @@ const initDB = async () => {
 
     sequelize = new Sequelize(dbUrl, {
         dialect: 'postgres',
+        dialectModule: pg,
         dialectOptions: {
             ssl: { require: true, rejectUnauthorized: false }
         },
