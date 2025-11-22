@@ -29,6 +29,50 @@ const initializeDatabase = async () => {
 
     if (dbUrl) {
         try {
+            const parsedUrl = new URL(dbUrl);
+            const hostname = parsedUrl.hostname;
+
+            // If hostname is not an IP, force resolve to IPv4
+            if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+                console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
+                let ipAddresses;
+
+                try {
+                    // Try default resolver first
+                    ipAddresses = await dns.promises.resolve4(hostname);
+                } catch (dnsError) {
+                    console.warn(`⚠️ Default DNS failed (${dnsError.code}), trying Google DNS (8.8.8.8)...`);
+                    // Fallback to Google DNS
+                    dns.setServers(['8.8.8.8', '8.8.4.4']);
+                    ipAddresses = await dns.promises.resolve4(hostname);
+                }
+
+                if (ipAddresses && ipAddresses.length > 0) {
+                    console.log(`✅ Resolved '${hostname}' to IPv4: ${ipAddresses[0]}`);
+                    // Construct new URL with IP
+                    parsedUrl.hostname = ipAddresses[0];
+                    dbUrl = parsedUrl.toString();
+                } else {
+                    throw new Error(`No IPv4 address found for ${hostname}`);
+                }
+            }
+
+            dbOptions = {
+                ...dbOptions,
+                dialect: 'postgres',
+                dialectOptions: {
+                    ssl: {
+                        require: true,
+                        rejectUnauthorized: false
+                    }
+                }
+            };
+
+            sequelize = new Sequelize(dbUrl, dbOptions);
+
+        } catch (error) {
+            console.error('❌ CRITICAL DATABASE ERROR:', error);
+            process.exit(1); // Fail hard if we can't resolve IPv4
         }
     } else {
         sequelize = new Sequelize({
