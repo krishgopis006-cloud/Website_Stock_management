@@ -5,7 +5,7 @@ const UserManagement = () => {
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ username: '', password: '', role: 'guest' });
     const [error, setError] = useState('');
-    const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
+    const API_URL = import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
     useEffect(() => {
         fetchUsers();
@@ -44,7 +44,8 @@ const UserManagement = () => {
                 setError(data.error || 'Failed to add user');
             }
         } catch (err) {
-            setError('Server error');
+            console.error('Error adding user:', err);
+            setError(`Server error: ${err.message}`);
         }
     };
 
