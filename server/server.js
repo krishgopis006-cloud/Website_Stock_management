@@ -20,7 +20,7 @@ const PORT = 3001;
 
 
 // Models
-const Product = sequelize.define('Product', {
+const Product = Sequelize.define('Product', {
     id: { type: DataTypes.STRING, primaryKey: true },
     name: { type: DataTypes.STRING, allowNull: false },
     quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -28,7 +28,7 @@ const Product = sequelize.define('Product', {
     date: { type: DataTypes.STRING }
 });
 
-const Transaction = sequelize.define('Transaction', {
+const Transaction = Sequelize.define('Transaction', {
     id: { type: DataTypes.STRING, primaryKey: true },
     type: { type: DataTypes.STRING, allowNull: false }, // IN, OUT, RETURN, DELETE
     name: { type: DataTypes.STRING, allowNull: false },
@@ -39,7 +39,7 @@ const Transaction = sequelize.define('Transaction', {
     timestamp: { type: DataTypes.STRING }
 });
 
-const User = sequelize.define('User', {
+const User = Sequelize.define('User', {
     username: { type: DataTypes.STRING, primaryKey: true },
     password: { type: DataTypes.STRING, allowNull: false },
     role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
