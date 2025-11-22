@@ -8,6 +8,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check - BEFORE database middleware
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Database Setup
 let sequelize;
 let Product, Transaction, User;
@@ -73,7 +78,7 @@ const initDB = async () => {
     dbInitialized = true;
 };
 
-// DB middleware
+// DB middleware - applies to all routes AFTER this point
 app.use(async (req, res, next) => {
     try {
         await initDB();
@@ -81,11 +86,6 @@ app.use(async (req, res, next) => {
     } catch (error) {
         res.status(500).json({ error: 'Database error', details: error.message });
     }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK' });
 });
 
 // Auth
