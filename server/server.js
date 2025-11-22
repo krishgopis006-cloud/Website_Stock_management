@@ -28,35 +28,11 @@ let databaseUrl = process.env.DATABASE_URL;
 // Force IPv4 resolution for Cloud Databases (Render/Neon)
 if (databaseUrl) {
     try {
-        const parsedUrl = new URL(databaseUrl);
-        const hostname = parsedUrl.hostname;
-
-        // Skip if already an IP
-        if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
-            console.log(`🔍 Resolving hostname '${hostname}' to IPv4...`);
-            // Use dns.lookup (OS resolver) instead of resolve4 (network)
-            const { address } = await dns.promises.lookup(hostname, { family: 4 });
-
-            if (address) {
-                console.log(`✅ Resolved '${hostname}' to IPv4: ${address}`);
-                parsedUrl.hostname = address;
-                databaseUrl = parsedUrl.toString();
-            } else {
-                console.warn(`⚠️ No IPv4 address found for ${hostname}`);
-            }
-        }
-    } catch (error) {
-        console.warn('⚠️ DNS Lookup failed, falling back to original URL:', error.message);
-    }
-}
-
-const sequelize = databaseUrl
-    ? new Sequelize(databaseUrl, {
         dialect: 'postgres',
-        dialectOptions: {
+            dialectOptions: {
             ssl: {
                 require: true,
-                rejectUnauthorized: false
+                    rejectUnauthorized: false
             }
         },
         logging: false
@@ -67,232 +43,232 @@ const sequelize = databaseUrl
         logging: false
     });
 
-if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    console.warn('\n⚠️  WARNING: You are running in production mode without a DATABASE_URL.');
-    console.warn('⚠️  Data will be stored in a local SQLite file and WILL BE LOST when the server restarts.');
-    console.warn('⚠️  Please configure DATABASE_URL to use a persistent PostgreSQL database.\n');
-}
-
-// Models
-const Product = sequelize.define('Product', {
-    id: { type: DataTypes.STRING, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
-    price: { type: DataTypes.FLOAT, defaultValue: 0.0 },
-    date: { type: DataTypes.STRING }
-});
-
-const Transaction = sequelize.define('Transaction', {
-    id: { type: DataTypes.STRING, primaryKey: true },
-    type: { type: DataTypes.STRING, allowNull: false }, // IN, OUT, RETURN, DELETE
-    name: { type: DataTypes.STRING, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, allowNull: false },
-    price: { type: DataTypes.FLOAT },
-    channel: { type: DataTypes.STRING }, // TikTok, WhatsApp, etc.
-    reason: { type: DataTypes.STRING },
-    timestamp: { type: DataTypes.STRING }
-});
-
-const User = sequelize.define('User', {
-    username: { type: DataTypes.STRING, primaryKey: true },
-    password: { type: DataTypes.STRING, allowNull: false },
-    role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
-});
-
-// Sync Database & Seed Users
-sequelize.sync({ alter: true }).then(async () => {
-    console.log('Database & tables created!');
-
-    // Seed default users if they don't exist
-    try {
-        const admin = await User.findByPk('admin');
-        if (!admin) {
-            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
-            console.log('Admin user created');
-        }
-
-        const guest = await User.findByPk('guest');
-        if (!guest) {
-            await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
-            console.log('Guest user created');
-        }
-    } catch (error) {
-        console.error('Error seeding users:', error);
+    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+        console.warn('\n⚠️  WARNING: You are running in production mode without a DATABASE_URL.');
+        console.warn('⚠️  Data will be stored in a local SQLite file and WILL BE LOST when the server restarts.');
+        console.warn('⚠️  Please configure DATABASE_URL to use a persistent PostgreSQL database.\n');
     }
-});
 
-// Routes
+    // Models
+    const Product = sequelize.define('Product', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        name: { type: DataTypes.STRING, allowNull: false },
+        quantity: { type: DataTypes.INTEGER, defaultValue: 0 },
+        price: { type: DataTypes.FLOAT, defaultValue: 0.0 },
+        date: { type: DataTypes.STRING }
+    });
 
-// --- User Routes ---
-app.get('/api/users', async (req, res) => {
-    try {
-        const users = await User.findAll({ attributes: ['username', 'role'] });
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    const Transaction = sequelize.define('Transaction', {
+        id: { type: DataTypes.STRING, primaryKey: true },
+        type: { type: DataTypes.STRING, allowNull: false }, // IN, OUT, RETURN, DELETE
+        name: { type: DataTypes.STRING, allowNull: false },
+        quantity: { type: DataTypes.INTEGER, allowNull: false },
+        price: { type: DataTypes.FLOAT },
+        channel: { type: DataTypes.STRING }, // TikTok, WhatsApp, etc.
+        reason: { type: DataTypes.STRING },
+        timestamp: { type: DataTypes.STRING }
+    });
 
-app.post('/api/users', async (req, res) => {
-    try {
-        const { username, password, role } = req.body;
-        const existing = await User.findByPk(username);
-        if (existing) {
-            return res.status(400).json({ error: 'Username already exists' });
+    const User = sequelize.define('User', {
+        username: { type: DataTypes.STRING, primaryKey: true },
+        password: { type: DataTypes.STRING, allowNull: false },
+        role: { type: DataTypes.STRING, defaultValue: 'guest' } // 'admin' or 'guest'
+    });
+
+    // Sync Database & Seed Users
+    sequelize.sync({ alter: true }).then(async () => {
+        console.log('Database & tables created!');
+
+        // Seed default users if they don't exist
+        try {
+            const admin = await User.findByPk('admin');
+            if (!admin) {
+                await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
+                console.log('Admin user created');
+            }
+
+            const guest = await User.findByPk('guest');
+            if (!guest) {
+                await User.create({ username: 'guest', password: 'guest123', role: 'guest' });
+                console.log('Guest user created');
+            }
+        } catch (error) {
+            console.error('Error seeding users:', error);
         }
-        const user = await User.create({ username, password, role });
-        res.json({ username: user.username, role: user.role });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    });
 
-app.delete('/api/users/:username', async (req, res) => {
-    try {
-        const { username } = req.params;
-        if (username === 'admin') {
-            return res.status(400).json({ error: 'Cannot delete main admin' });
+    // Routes
+
+    // --- User Routes ---
+    app.get('/api/users', async (req, res) => {
+        try {
+            const users = await User.findAll({ attributes: ['username', 'role'] });
+            res.json(users);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-        const user = await User.findByPk(username);
-        if (user) {
-            await user.destroy();
-            res.json({ message: 'User deleted' });
-        } else {
-            res.status(404).json({ error: 'User not found' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    });
 
-app.get('/api/fix-admin', async (req, res) => {
-    try {
-        const admin = await User.findByPk('admin');
-        if (admin) {
-            await admin.update({ password: 'admin123' });
-            res.send('Admin password reset to admin123');
-        } else {
-            await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
-            res.send('Admin user created with password admin123');
-        }
-    } catch (error) {
-        res.status(500).send(error.message);
-    }
-});
-
-// --- Auth Routes ---
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        console.log(`Login attempt for: '${username}'`);
-
-        const user = await User.findByPk(username);
-
-        if (user && user.password === password) {
-            console.log('Login success');
+    app.post('/api/users', async (req, res) => {
+        try {
+            const { username, password, role } = req.body;
+            const existing = await User.findByPk(username);
+            if (existing) {
+                return res.status(400).json({ error: 'Username already exists' });
+            }
+            const user = await User.create({ username, password, role });
             res.json({ username: user.username, role: user.role });
-        } else {
-            console.log('Login failed: Invalid credentials');
-            res.status(401).json({ error: 'Invalid credentials' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+    });
 
-// --- Inventory Routes ---
-app.get('/api/inventory', async (req, res) => {
-    try {
-        const products = await Product.findAll();
-        res.json(products);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    app.delete('/api/users/:username', async (req, res) => {
+        try {
+            const { username } = req.params;
+            if (username === 'admin') {
+                return res.status(400).json({ error: 'Cannot delete main admin' });
+            }
+            const user = await User.findByPk(username);
+            if (user) {
+                await user.destroy();
+                res.json({ message: 'User deleted' });
+            } else {
+                res.status(404).json({ error: 'User not found' });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-app.post('/api/inventory', async (req, res) => {
-    try {
-        const product = await Product.create(req.body);
-        res.json(product);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    app.get('/api/fix-admin', async (req, res) => {
+        try {
+            const admin = await User.findByPk('admin');
+            if (admin) {
+                await admin.update({ password: 'admin123' });
+                res.send('Admin password reset to admin123');
+            } else {
+                await User.create({ username: 'admin', password: 'admin123', role: 'admin' });
+                res.send('Admin user created with password admin123');
+            }
+        } catch (error) {
+            res.status(500).send(error.message);
+        }
+    });
 
+    // --- Auth Routes ---
+    app.post('/api/login', async (req, res) => {
+        try {
+            const { username, password } = req.body;
+            console.log(`Login attempt for: '${username}'`);
 
-// --- Reset Routes ---
-app.delete('/api/inventory/reset', async (req, res) => {
-    try {
-        await Product.destroy({ where: {}, truncate: true });
-        res.json({ message: 'All inventory cleared' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+            const user = await User.findByPk(username);
 
-app.delete('/api/transactions/reset', async (req, res) => {
-    try {
-        await Transaction.destroy({ where: {}, truncate: true });
-        res.json({ message: 'All transactions cleared' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+            if (user && user.password === password) {
+                console.log('Login success');
+                res.json({ username: user.username, role: user.role });
+            } else {
+                console.log('Login failed: Invalid credentials');
+                res.status(401).json({ error: 'Invalid credentials' });
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-app.put('/api/inventory/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const product = await Product.findByPk(id);
-        if (product) {
-            await product.update(req.body);
+    // --- Inventory Routes ---
+    app.get('/api/inventory', async (req, res) => {
+        try {
+            const products = await Product.findAll();
+            res.json(products);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    app.post('/api/inventory', async (req, res) => {
+        try {
+            const product = await Product.create(req.body);
             res.json(product);
-        } else {
-            res.status(404).json({ error: 'Product not found' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    });
 
-app.delete('/api/inventory/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const product = await Product.findByPk(id);
-        if (product) {
-            await product.destroy();
-            res.json({ message: 'Product deleted' });
-        } else {
-            res.status(404).json({ error: 'Product not found' });
+
+    // --- Reset Routes ---
+    app.delete('/api/inventory/reset', async (req, res) => {
+        try {
+            await Product.destroy({ where: {}, truncate: true });
+            res.json({ message: 'All inventory cleared' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    });
 
-// --- Transaction Routes ---
-app.get('/api/transactions', async (req, res) => {
-    try {
-        const transactions = await Transaction.findAll({
-            order: [['timestamp', 'DESC']]
-        });
-        res.json(transactions);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    app.delete('/api/transactions/reset', async (req, res) => {
+        try {
+            await Transaction.destroy({ where: {}, truncate: true });
+            res.json({ message: 'All transactions cleared' });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-app.post('/api/transactions', async (req, res) => {
-    try {
-        const transaction = await Transaction.create(req.body);
-        res.json(transaction);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+    app.put('/api/inventory/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const product = await Product.findByPk(id);
+            if (product) {
+                await product.update(req.body);
+                res.json(product);
+            } else {
+                res.status(404).json({ error: 'Product not found' });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    app.delete('/api/inventory/:id', async (req, res) => {
+        try {
+            const { id } = req.params;
+            const product = await Product.findByPk(id);
+            if (product) {
+                await product.destroy();
+                res.json({ message: 'Product deleted' });
+            } else {
+                res.status(404).json({ error: 'Product not found' });
+            }
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // --- Transaction Routes ---
+    app.get('/api/transactions', async (req, res) => {
+        try {
+            const transactions = await Transaction.findAll({
+                order: [['timestamp', 'DESC']]
+            });
+            res.json(transactions);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    app.post('/api/transactions', async (req, res) => {
+        try {
+            const transaction = await Transaction.create(req.body);
+            res.json(transaction);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
 
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-});
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
