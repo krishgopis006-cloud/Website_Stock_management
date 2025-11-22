@@ -71,8 +71,18 @@ const initializeDatabase = async () => {
             sequelize = new Sequelize(dbUrl, dbOptions);
 
         } catch (error) {
-            console.error('❌ CRITICAL DATABASE ERROR:', error);
-            process.exit(1); // Fail hard if we can't resolve IPv4
+            console.error('❌ CRITICAL DATABASE ERROR:', error.message);
+
+            if (dbUrl.includes('supabase.co') && (error.code === 'ENODATA' || error.message.includes('No IPv4'))) {
+                console.error('\n⚠️  SUPABASE CONFIGURATION ISSUE DETECTED ⚠️');
+                console.error('You are likely using the "Direct Connection" URL which is IPv6-only.');
+                console.error('Most cloud hosts (like Render) only support IPv4.');
+                console.error('👉 SOLUTION: Go to Supabase Dashboard -> Database -> Connection String -> URI');
+                console.error('👉 Select "Connection Pooler" (Mode: Transaction) and copy that URL.');
+                console.error('👉 It should look like: postgres://[user]:[password]@aws-0-[region].pooler.supabase.com:6543/[db]\n');
+            }
+
+            process.exit(1);
         }
     } else {
         sequelize = new Sequelize({
